@@ -8,7 +8,7 @@ import { z } from "zod";
 import dotenv from "dotenv";
 
 // Carrega as variáveis definidas no arquivo .env
-dotenv.config({ path: "/.env" });
+dotenv.config();
 
 // Create an MCP server
 const server = new McpServer({
@@ -46,6 +46,7 @@ server.registerTool(
       "Search for books in the Open Library API by title, author, or keyword",
     inputSchema: { query: z.string() },
     outputSchema: {
+      number: z.number(),
       docs: z.array(
         z.object({
           title: z.string(),
@@ -57,23 +58,26 @@ server.registerTool(
     },
   },
   async ({ query }) => {
-    const url = `${process.env.OPENLIBRARY_URL}?q=${encodeURIComponent(query)}`;
+    const url = `${
+      process.env.OPENLIBRARY_URL
+    }search.json?q=${encodeURIComponent(query)}`;
+    console.log(url);
     const response = await fetch(url);
     const data = await response.json();
-    const output = (data.docs || []).slice(0).map((book: any) => ({
+    const docsArray = (data.docs || []).slice(0).map((book: any) => ({
       title: book.title,
       author: book.author_name ? book.author_name.join(", ") : "Unknown",
       first_publish_year: book.first_publish_year,
       edition_count: book.edition_count,
     }));
-
+    const output = { number: 1, docs: docsArray };
+    console.log(JSON.stringify(output));
     return {
       content: [{ type: "text", text: JSON.stringify(output) }],
       structuredContent: output,
     };
   }
 );
-
 // Set up Express and HTTP transport
 const app = express();
 app.use(express.json());
