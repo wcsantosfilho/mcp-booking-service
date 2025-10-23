@@ -5,6 +5,10 @@ import {
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
 import { z } from "zod";
+import dotenv from "dotenv";
+
+// Carrega as variáveis definidas no arquivo .env
+dotenv.config({ path: "/.env" });
 
 // Create an MCP server
 const server = new McpServer({
@@ -30,22 +34,44 @@ server.registerTool(
   }
 );
 
-// Add a dynamic greeting resource
-server.registerResource(
-  "greeting",
-  new ResourceTemplate("greeting://{name}", { list: undefined }),
+// https://openlibrary.org/search.json?q=the+lord+of+the+rings
+// --------------------------------------------------
+// Tool: search_books
+// --------------------------------------------------
+server.registerTool(
+  "search-books",
   {
-    title: "Greeting Resource", // Display name for UI
-    description: "Dynamic greeting generator",
+    title: "Search books",
+    description:
+      "Search for books in the Open Library API by title, author, or keyword",
+    inputSchema: { query: z.string() },
+    outputSchema: {
+      docs: z.array(
+        z.object({
+          title: z.string(),
+          author: z.string(),
+          first_publish_year: z.number(),
+          edition_count: z.number(),
+        })
+      ),
+    },
   },
-  async (uri, { name }) => ({
-    contents: [
-      {
-        uri: uri.href,
-        text: `Hello, ${name}!`,
-      },
-    ],
-  })
+  async ({ query }) => {
+    const url = `${process.env.OPENLIBRARY_URL}?q=${encodeURIComponent(query)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    const output = (data.docs || []).slice(0).map((book: any) => ({
+      title: book.title,
+      author: book.author_name ? book.author_name.join(", ") : "Unknown",
+      first_publish_year: book.first_publish_year,
+      edition_count: book.edition_count,
+    }));
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(output) }],
+      structuredContent: output,
+    };
+  }
 );
 
 // Set up Express and HTTP transport
