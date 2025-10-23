@@ -61,7 +61,7 @@ server.registerTool(
     const url = `${
       process.env.OPENLIBRARY_URL
     }search.json?q=${encodeURIComponent(query)}`;
-    console.log(url);
+    console.log(`URL:${url}`);
     const response = await fetch(url);
     const data = await response.json();
     const docsArray = (data.docs || []).slice(0).map((book: any) => ({
